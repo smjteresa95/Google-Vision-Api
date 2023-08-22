@@ -51,12 +51,12 @@ def detect_text(url):
 #품목보고번호 가져오기
 def extract_report_num(text):
     num_pattern = re.compile(
-        r'품목보고번호 (\d+-\d+)', re.I
+        r'품목보고번호 (\s*\d+\s*-\s*\d+\s*)', re.I
     )
 
     matches = num_pattern.search(text)
     if matches: 
-        return matches.group()
+        return matches.group(1).strip()
     else:
         return "품목보고번호 가져오기 실패"
 
@@ -66,15 +66,27 @@ def extract_report_num(text):
 
 #내용량과 열량 가져오기
 def extract_misc_data(text):
-    
+
+    # 내용량과 칼로리 정보를 찾기 위한 정규표현식
     kcal_pattern = re.compile(
-        r'내용량\n(\d+ ?[g|mL])\n(\d+ ?kcal)', re.I)
+        r'내용량\s+(\d+ ?[g|mL])\s+\(?\d+\)? ?kcal', re.I)
     
     matches = kcal_pattern.search(text)
+
     if matches: 
-            return matches.group()
+            serving = matches.group(1) #내용량
+
+            #kcal 문자열이 있는 부분을 추출하기 위한 정규표현식
+            cal_pattern = re.compile(r'\(?\d+\)? ?kcal', re.I)
+            cal_match = cal_pattern.search(matches.group())
+
+            if cal_match:
+                cal = cal_match.group().replace('(','').replace(')','')
+                return serving, cal
+            else:
+                return serving, "열량 정보 없다"
     else:
-        return "형식 잘못 입력한듯"
+        return "둘 다 없다."
     
 
 
@@ -95,7 +107,10 @@ def extract_nutri_data(text, keyword):
         match = re.search(pattern, text)
 
         if match: 
-            return match.group(1)
+            #키워드를 제거하고 앞뒤 공백 제거 
+            result = match.group(1).replace(keyword,'').strip()
+            return result
+
     else:
         return "일치하는 패턴이 없습니다."
 
@@ -111,7 +126,8 @@ data = detect_text(r'https://gi.esmplus.com/babyda/all_new_bb/grain/on_the_go/ma
 
 nutri_keywords = ['나트륨', '탄수화물', '당류', '지방', '트랜스지방', '포화지방', '콜레스테롤', '단백질']
 
-extracted_list = []
+extracted_nutri_list = []
+
 
 
 if contains_multiple_items(data, '탄수화물'):
@@ -129,10 +145,15 @@ print(extract_report_num(data))
 # 영양성분
 for keyword in nutri_keywords:
     result = extract_nutri_data(data, keyword)
-    extracted_list.append(result)
+    extracted_nutri_list.append(result)
 
-print(extracted_list)
+print(extracted_nutri_list)
 
 
 #내용량, 열량 
-print(extract_misc_data(data))
+
+serving, cal = extract_misc_data(data)
+
+print(serving)
+print(cal)
+
